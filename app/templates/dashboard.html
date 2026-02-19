@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinicast</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f6fa;
+            color: #2d3436;
+            line-height: 1.5;
+        }
+        header {
+            background: #fff;
+            border-bottom: 1px solid #e1e4e8;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 20px; font-weight: 600; }
+        header a {
+            color: #586069;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        header a:hover { color: #0366d6; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            color: #586069;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .stat-card .sub {
+            font-size: 13px;
+            color: #586069;
+            margin-top: 2px;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e1e4e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-header h2 { font-size: 16px; font-weight: 600; }
+        .panel-header .badge {
+            background: #ffeaa7;
+            color: #6c5b00;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .panel-header .badge.red {
+            background: #fab1a0;
+            color: #6b1a00;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: left;
+            padding: 10px 20px;
+            font-size: 12px;
+            color: #586069;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e1e4e8;
+            background: #fafbfc;
+        }
+        td {
+            padding: 12px 20px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #f6f8fa; }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .risk-high { background: #fdcb6e; color: #6c5b00; }
+        .risk-critical { background: #e17055; color: #fff; }
+
+        .noshow-bar {
+            display: inline-block;
+            height: 8px;
+            border-radius: 4px;
+            background: #e17055;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: #586069;
+            font-size: 14px;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .bar-chart { padding: 20px; }
+        .bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .bar-label {
+            width: 140px;
+            font-size: 13px;
+            color: #586069;
+            flex-shrink: 0;
+        }
+        .bar-track {
+            flex: 1;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #0984e3;
+        }
+        .bar-value {
+            width: 50px;
+            text-align: right;
+            font-size: 13px;
+            color: #2d3436;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* predict form */
+        .predict-form {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label {
+            font-size: 12px;
+            color: #586069;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select {
+            padding: 8px 10px;
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #fff;
+            color: #2d3436;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #0984e3;
+            box-shadow: 0 0 0 2px rgba(9,132,227,0.15);
+        }
+        .form-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 4px;
+        }
+        .btn-predict {
+            padding: 9px 20px;
+            background: #0984e3;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-predict:hover { background: #0773c5; }
+        .btn-predict:disabled { background: #a0c4e8; cursor: not-allowed; }
+
+        #predict-result {
+            font-size: 14px;
+            display: none;
+        }
+        #predict-result .score {
+            font-size: 24px;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+        #predict-result .risk-low { color: #00b894; }
+        #predict-result .risk-medium { color: #fdcb6e; }
+        #predict-result .risk-high { color: #e17055; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Clinicast</h1>
+        <a href="/docs">API Docs</a>
+    </header>
+
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <div class="label">Total Appointments</div>
+                <div class="value">{{ stats.total_appointments | default(0) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">No-Show Rate</div>
+                <div class="value">{{ "%.1f" | format(stats.noshow_rate) }}%</div>
+                <div class="sub">across all records</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">High Risk Flagged</div>
+                <div class="value">{{ stats.high_risk_count | default(0) }}</div>
+                <div class="sub">score >= 0.6</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Model AUC</div>
+                <div class="value">{{ "%.2f" | format(stats.rf_auc) }}</div>
+                <div class="sub">Random Forest</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Score an Appointment</h2>
+            </div>
+            <form class="predict-form" id="predict-form" onsubmit="return runPredict(event)">
+                <div class="form-group">
+                    <label for="patient_id">Patient ID</label>
+                    <input type="number" id="patient_id" name="patient_id" value="42" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="scheduled_datetime">Scheduled Date/Time</label>
+                    <input type="datetime-local" id="scheduled_datetime" name="scheduled_datetime" required>
+                </div>
+                <div class="form-group">
+                    <label for="appointment_type">Appointment Type</label>
+                    <select id="appointment_type" name="appointment_type">
+                        <option value="GP">GP</option>
+                        <option value="telehealth">Telehealth</option>
+                        <option value="walk-in">Walk-in</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="booked_lead_time_days">Lead Time (days)</label>
+                    <input type="number" id="booked_lead_time_days" name="booked_lead_time_days" value="7" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="reminders_sent">Reminders Sent</label>
+                    <input type="number" id="reminders_sent" name="reminders_sent" value="0" min="0" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-predict" id="btn-predict">Predict No-Show</button>
+                    <div id="predict-result">
+                        <span class="score" id="result-score"></span>
+                        <span class="risk-badge" id="result-badge"></span>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="chart-row">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>No-Show Rate by Appointment Type</h2>
+                </div>
+                <div class="bar-chart">
+                    {% for item in by_type %}
+                    <div class="bar-row">
+                        <div class="bar-label">{{ item.type }}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width: {{ (item.rate / 40 * 100) | int }}%"></div>
+                        </div>
+                        <div class="bar-value">{{ "%.1f" | format(item.rate) }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Feature Importance</h2>
+                </div>
+                <div class="bar-chart">
+                    {% for feat in feature_importance %}
+                    <div class="bar-row">
+                        <div class="bar-label">{{ feat.name }}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width: {{ (feat.importance * 100 / max_importance) | int }}%"></div>
+                        </div>
+                        <div class="bar-value">{{ "%.1f" | format(feat.importance * 100) }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>High-Risk Appointments</h2>
+                <span class="badge red">{{ high_risk | length }} flagged</span>
+            </div>
+            {% if high_risk %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Patient</th>
+                        <th>Scheduled</th>
+                        <th>Type</th>
+                        <th>Lead Time</th>
+                        <th>Reminders</th>
+                        <th>No-Show Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in high_risk %}
+                    <tr>
+                        <td>{{ appt.appointment_id }}</td>
+                        <td>{{ appt.patient_id }}</td>
+                        <td>{{ appt.scheduled_datetime.strftime('%b %d, %Y %I:%M %p') }}</td>
+                        <td>{{ appt.appointment_type }}</td>
+                        <td>{{ appt.booked_lead_time_days }}d</td>
+                        <td>{{ appt.reminders_sent }}</td>
+                        <td>
+                            <span class="noshow-bar" style="width: {{ (appt.noshow_probability * 100) | int }}px"></span>
+                            <span class="risk-badge {% if appt.noshow_probability >= 0.75 %}risk-critical{% else %}risk-high{% endif %}">
+                                {{ "%.0f" | format(appt.noshow_probability * 100) }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">No high-risk appointments found. Run the scoring script to populate.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // default the datetime picker to next Monday at 9am
+        (function() {
+            var now = new Date();
+            var day = now.getDay();
+            var diff = (day === 0) ? 1 : 8 - day;
+            var next = new Date(now.getTime() + diff * 86400000);
+            next.setHours(9, 0, 0, 0);
+            var iso = next.toISOString().slice(0, 16);
+            document.getElementById('scheduled_datetime').value = iso;
+        })();
+
+        function runPredict(e) {
+            e.preventDefault();
+            var btn = document.getElementById('btn-predict');
+            var result = document.getElementById('predict-result');
+            btn.disabled = true;
+            btn.textContent = 'Scoring...';
+            result.style.display = 'none';
+
+            var body = {
+                patient_id: parseInt(document.getElementById('patient_id').value),
+                scheduled_datetime: document.getElementById('scheduled_datetime').value + ':00',
+                appointment_type: document.getElementById('appointment_type').value,
+                booked_lead_time_days: parseInt(document.getElementById('booked_lead_time_days').value),
+                reminders_sent: parseInt(document.getElementById('reminders_sent').value)
+            };
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            })
+            .then(function(r) {
+                if (!r.ok) return r.json().then(function(d) { throw d; });
+                return r.json();
+            })
+            .then(function(data) {
+                var score = document.getElementById('result-score');
+                var badge = document.getElementById('result-badge');
+                var pct = Math.round(data.noshow_probability * 100);
+
+                score.textContent = pct + '%';
+                score.className = 'score risk-' + data.risk_level;
+
+                badge.textContent = data.risk_level;
+                badge.className = 'risk-badge';
+                if (data.risk_level === 'high') badge.classList.add('risk-critical');
+                else if (data.risk_level === 'medium') badge.classList.add('risk-high');
+
+                result.style.display = 'flex';
+                result.style.alignItems = 'center';
+            })
+            .catch(function(err) {
+                var msg = (err && err.detail) ? err.detail : 'Request failed';
+                alert(msg);
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Predict No-Show';
+            });
+
+            return false;
+        }
+    </script>
+</body>
+</html>

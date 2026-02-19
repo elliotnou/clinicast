@@ -1,9 +1,12 @@
 from datetime import datetime
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import joblib
 import numpy as np
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -16,6 +19,10 @@ from app.schemas import (
     PredictResponse,
     ReminderRequest,
     ReminderResponse,
+)
+
+templates = Jinja2Templates(
+    directory=str(Path(__file__).parent / "templates")
 )
 
 # loaded at startup
@@ -170,6 +177,85 @@ def trigger_reminder(req: ReminderRequest, db: Session = Depends(get_db)):
         sent_at=reminder.sent_at,
         new_reminder_count=appt.reminders_sent,
     )
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    # overall stats
+    total = db.execute(text("SELECT COUNT(*) FROM appointments")).scalar()
+    noshows = db.execute(
+        text("SELECT COUNT(*) FROM appointments WHERE status = 'no-show'")
+    ).scalar()
+    noshow_rate = (noshows / total * 100) if total > 0 else 0
+    high_risk_count = db.execute(
+        text("SELECT COUNT(*) FROM appointments WHERE noshow_probability >= :t"),
+        {"t": HIGH_RISK_THRESHOLD},
+    ).scalar()
+
+    # load model metadata if available
+    rf_auc = 0.0
+    try:
+        meta = joblib.load("models/model_metadata.joblib")
+        rf_auc = meta.get("rf_auc", 0.0)
+    except Exception:
+        pass
+
+    # no-show rate by appointment type
+    by_type_rows = db.execute(text("""
+        SELECT appointment_type,
+               COUNT(*) FILTER (WHERE status = 'no-show') * 100.0 / COUNT(*) AS rate
+        FROM appointments
+        WHERE status IN ('showed', 'no-show')
+        GROUP BY appointment_type
+        ORDER BY rate DESC
+    """)).fetchall()
+    by_type = [{"type": r[0], "rate": float(r[1])} for r in by_type_rows]
+
+    # feature importance from the loaded model
+    feature_importance = []
+    max_importance = 0.01
+    if model_bundle:
+        model = model_bundle["model"]
+        feature_names = model_bundle.get("features", [])
+        display_names = {
+            "lead_time_days": "Lead Time",
+            "day_of_week": "Day of Week",
+            "hour_of_day": "Hour",
+            "appointment_type_encoded": "Appt Type",
+            "patient_historical_noshow_rate": "Patient History",
+            "reminders_sent": "Reminders",
+            "patient_age_group": "Age Group",
+        }
+        importances = model.feature_importances_
+        max_importance = max(importances)
+        for name, imp in sorted(zip(feature_names, importances), key=lambda x: -x[1]):
+            feature_importance.append({
+                "name": display_names.get(name, name),
+                "importance": float(imp),
+            })
+
+    # high-risk appointments (show top 25)
+    high_risk = (
+        db.query(Appointment)
+        .filter(Appointment.noshow_probability >= HIGH_RISK_THRESHOLD)
+        .order_by(Appointment.noshow_probability.desc())
+        .limit(25)
+        .all()
+    )
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "stats": {
+            "total_appointments": total,
+            "noshow_rate": noshow_rate,
+            "high_risk_count": high_risk_count,
+            "rf_auc": rf_auc,
+        },
+        "by_type": by_type,
+        "feature_importance": feature_importance,
+        "max_importance": max_importance,
+        "high_risk": high_risk,
+    })
 
 
 @app.get("/health")
