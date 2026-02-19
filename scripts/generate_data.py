@@ -44,10 +44,10 @@ def generate_patients(session):
         )
         p = Patient(
             patient_id=i,
-            age=np.random.choice(
+            age=int(np.random.choice(
                 range(2, 90),
                 p=_age_distribution(),
-            ),
+            )),
             gender=random.choice(["M", "F", "X"]),
             postal_code=random.choice(POSTAL_PREFIXES) + " " + fake.bothify("?#?").upper(),
             registration_date=reg_date,
@@ -85,48 +85,47 @@ def _noshow_probability(
     Not trying to be perfect here — just baking in the patterns
     that the ML model should be able to pick up on.
     """
-    base = 0.18  # baseline ~18%
+    base = 0.09  # low baseline — risk factors push it up
 
-    # longer lead times = higher risk
-    if lead_time_days > 21:
-        base += 0.12
-    elif lead_time_days > 14:
-        base += 0.07
-    elif lead_time_days > 7:
-        base += 0.03
+    # lead time: continuous effect, not just buckets
+    # every extra day adds risk, with diminishing returns
+    base += min(lead_time_days * 0.014, 0.38)
 
     # monday mornings and friday afternoons are worse
     if day_of_week == 0 and hour < 12:
-        base += 0.06
-    if day_of_week == 4 and hour >= 14:
-        base += 0.06
-
-    # reminders help
-    if reminders_sent >= 1:
-        base -= 0.08
-    if reminders_sent >= 2:
+        base += 0.12
+    elif day_of_week == 4 and hour >= 14:
+        base += 0.12
+    # mid-week is slightly better
+    elif day_of_week in (1, 2, 3):
         base -= 0.03
+
+    # reminders help a lot
+    if reminders_sent >= 1:
+        base -= 0.15
+    if reminders_sent >= 2:
+        base -= 0.06
 
     # new patients no-show more
     if is_new_patient:
-        base += 0.07
+        base += 0.15
 
     # walk-ins almost never no-show (they're already there)
     if appointment_type == "walk-in":
-        base -= 0.12
+        base -= 0.10
     elif appointment_type == "telehealth":
-        base += 0.03
+        base += 0.08
 
     # young adults (18-30) no-show more, seniors less
     if 18 <= patient_age <= 30:
-        base += 0.04
+        base += 0.10
     elif patient_age >= 65:
-        base -= 0.03
+        base -= 0.06
 
     # clamp and add noise
-    base = np.clip(base, 0.03, 0.55)
-    base += np.random.normal(0, 0.02)
-    return float(np.clip(base, 0.01, 0.60))
+    base = np.clip(base, 0.02, 0.70)
+    base += np.random.normal(0, 0.01)
+    return float(np.clip(base, 0.01, 0.75))
 
 
 def generate_appointments(session, patients):
@@ -233,6 +232,18 @@ def main():
         print("Generating reminders...")
         generate_reminders(session, appointments)
 
+        session.commit()
+
+        # reset postgres sequences so new inserts don't collide with seeded IDs
+        for table_name, id_col in [
+            ("patients", "patient_id"),
+            ("appointments", "appointment_id"),
+            ("reminders", "reminder_id"),
+        ]:
+            session.execute(text(
+                f"SELECT setval(pg_get_serial_sequence('{table_name}', '{id_col}'), "
+                f"COALESCE((SELECT MAX({id_col}) FROM {table_name}), 1))"
+            ))
         session.commit()
 
         # quick sanity check

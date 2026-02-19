@@ -101,7 +101,7 @@ def build_features(df):
     return df, le
 
 
-def train_and_evaluate(df):
+def train_and_evaluate(df, le):
     X = df[FEATURE_COLS].values
     y = df["target"].values
 
@@ -110,7 +110,7 @@ def train_and_evaluate(df):
     )
 
     # --- Logistic Regression (baseline) ---
-    lr = LogisticRegression(max_iter=1000, random_state=42)
+    lr = LogisticRegression(max_iter=1000, class_weight="balanced", random_state=42)
     lr.fit(X_train, y_train)
     lr_probs = lr.predict_proba(X_test)[:, 1]
     lr_auc = roc_auc_score(y_test, lr_probs)
@@ -125,7 +125,8 @@ def train_and_evaluate(df):
     rf = RandomForestClassifier(
         n_estimators=200,
         max_depth=12,
-        min_samples_leaf=20,
+        min_samples_leaf=10,
+        class_weight="balanced",
         random_state=42,
         n_jobs=-1,
     )
@@ -158,7 +159,7 @@ def main():
     df, le = build_features(df)
 
     print("Training models...\n")
-    rf, lr, le, rf_auc, lr_auc = train_and_evaluate(df)
+    rf, lr, le, rf_auc, lr_auc = train_and_evaluate(df, le)
 
     # save the random forest (it's the one we'll use in production)
     os.makedirs("models", exist_ok=True)
