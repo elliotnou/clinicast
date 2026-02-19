@@ -23,9 +23,10 @@ Python 3.11, FastAPI, PostgreSQL, SQLAlchemy, scikit-learn, pandas, Docker, GitH
 # start postgres and the API
 docker compose up --build -d
 
-# generate data and train model
+# generate data, train model, and score appointments
 docker compose exec app python -m scripts.generate_data
 docker compose exec app python -m scripts.train_model
+docker compose exec app python -m scripts.score_appointments
 
 # restart app so it loads the trained model
 docker compose restart app
@@ -45,9 +46,10 @@ docker compose up db -d
 # copy and edit env
 cp .env.example .env
 
-# generate data + train
+# generate data, train, and score
 python -m scripts.generate_data
 python -m scripts.train_model
+python -m scripts.score_appointments
 
 # run the API
 uvicorn app.main:app --reload
@@ -81,7 +83,7 @@ Returns:
 
 ### `GET /appointments/high-risk`
 
-Returns all upcoming appointments with noshow_probability >= 0.6, sorted by time.
+Returns all upcoming appointments with noshow_probability >= 0.6, sorted by time. Scores are written to the DB by the batch scoring step (`scripts/score_appointments.py`), which you'd run on a schedule in production (e.g. daily cron).
 
 ### `POST /reminders/trigger`
 
@@ -138,9 +140,10 @@ clinicast/
 │   ├── models.py          # orm models (patients, appointments, reminders)
 │   └── schemas.py         # pydantic request/response schemas
 ├── scripts/
-│   ├── generate_data.py   # synthetic data generation
-│   ├── train_model.py     # ml training pipeline
-│   └── setup.sh           # convenience script
+│   ├── generate_data.py       # synthetic data generation
+│   ├── train_model.py         # ml training pipeline
+│   ├── score_appointments.py  # batch-score appointments and write to DB
+│   └── setup.sh               # convenience script
 ├── tests/
 │   ├── conftest.py        # fixtures + test db setup
 │   └── test_api.py        # api tests
