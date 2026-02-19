@@ -19,3 +19,4 @@ htmlcov/
 *.swp
 *.swo
 *~
+.claude

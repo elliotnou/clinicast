@@ -34,17 +34,11 @@ def override_get_db():
         db.close()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_model(tmp_path_factory):
-    """Create a dummy model so the app can load it."""
+def _make_test_model_bundle():
+    """Build a small dummy model with the right feature shape."""
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.preprocessing import LabelEncoder
-    import joblib
 
-    model_dir = tmp_path_factory.mktemp("models")
-    model_path = str(model_dir / "noshow_model.joblib")
-
-    # train a tiny dummy model with the right shape
     rng = np.random.RandomState(42)
     X = rng.rand(100, 7)
     y = (rng.rand(100) > 0.8).astype(int)
@@ -60,11 +54,10 @@ def setup_test_model(tmp_path_factory):
         "appointment_type_encoded", "patient_historical_noshow_rate",
         "reminders_sent", "patient_age_group",
     ]
-    joblib.dump({"model": clf, "label_encoder": le, "features": features}, model_path)
+    return {"model": clf, "label_encoder": le, "features": features}
 
-    os.environ["MODEL_PATH"] = model_path
-    os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-    yield
+
+_test_model_bundle = _make_test_model_bundle()
 
 
 @pytest.fixture()
@@ -94,9 +87,12 @@ def db():
 
 @pytest.fixture()
 def client(db):
+    import app.main as main_module
     from app.main import app
 
     app.dependency_overrides[get_db] = lambda: db
     with TestClient(app) as c:
+        # re-inject after lifespan runs (it tries to load from disk)
+        main_module.model_bundle = _test_model_bundle
         yield c
     app.dependency_overrides.clear()
