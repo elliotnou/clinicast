@@ -101,13 +101,13 @@ Log a reminder sent for an appointment. Updates the reminder count on the appoin
 Two models are trained for comparison:
 
 - **Logistic Regression** — baseline
-- **Random Forest** (200 trees, max_depth=12) — used in production
+- **Random Forest** (200 trees, max_depth=12, class_weight=balanced) — used in production
 
 Features: lead time, day of week, hour, appointment type, patient historical no-show rate, reminders sent, age group.
 
-The historical no-show rate is computed with a look-back approach (no data leakage — each appointment only sees past visits for that patient).
+The historical no-show rate is computed with a look-back approach (no data leakage — each appointment only sees past visits for that patient). Both models use `class_weight="balanced"` to handle the ~82/18 class split.
 
-Target AUC: 0.75-0.80 on held-out test set.
+AUC on held-out test set: ~0.74 (RF), ~0.70 (LR baseline).
 
 ## Data generation
 
