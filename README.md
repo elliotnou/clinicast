@@ -8,31 +8,32 @@ The system flags high-risk appointments so staff can send targeted reminders bef
 
 - Generates ~10,000 synthetic appointments with realistic no-show patterns (lead time, day of week, patient history, reminders sent)
 - Trains a Random Forest classifier to predict no-show probability per appointment
-- Exposes a FastAPI backend with endpoints to score appointments, list high-risk bookings, and trigger reminders
-- Runs in Docker — one command to spin up Postgres + the API
+- Serves a Django REST Framework backend with endpoints to score appointments, list high-risk bookings, and trigger reminders
+- Includes a dashboard for stats and live scoring
+- Runs in Docker — one command to spin up Postgres + the app
 
 ## Tech stack
 
-Python 3.11, FastAPI, Strawberry GraphQL, PostgreSQL, SQLAlchemy, scikit-learn, pandas, Docker, GitHub Actions
+Python 3.11, Django, Django REST Framework, Strawberry GraphQL, PostgreSQL, scikit-learn, pandas, Docker, GitHub Actions
 
 ## Quick start
 
 ### With Docker (recommended)
 
 ```bash
-# start postgres and the API
+# start postgres and the app
 docker compose up --build -d
 
 # generate data, train model, and score appointments
-docker compose exec app python -m scripts.generate_data
-docker compose exec app python -m scripts.train_model
-docker compose exec app python -m scripts.score_appointments
+docker compose exec app python manage.py generate_data
+docker compose exec app python scripts/train_model.py
+docker compose exec app python manage.py score_appointments
 
 # restart app so it loads the trained model
 docker compose restart app
 ```
 
-API is at http://localhost:8000. Docs at http://localhost:8000/docs.
+App is at http://localhost:8000. Admin at http://localhost:8000/admin/.
 
 ### Local development
 
@@ -46,18 +47,21 @@ docker compose up db -d
 # copy and edit env
 cp .env.example .env
 
-# generate data, train, and score
-python -m scripts.generate_data
-python -m scripts.train_model
-python -m scripts.score_appointments
+# run migrations
+python manage.py migrate
 
-# run the API
-uvicorn app.main:app --reload
+# generate data, train, and score
+python manage.py generate_data
+python scripts/train_model.py
+python manage.py score_appointments
+
+# run the dev server
+python manage.py runserver
 ```
 
 ## API endpoints
 
-### `POST /predict`
+### `POST /api/predict`
 
 Score an appointment for no-show risk.
 
@@ -81,11 +85,11 @@ Returns:
 }
 ```
 
-### `GET /appointments/high-risk`
+### `GET /api/appointments/high-risk`
 
-Returns all upcoming appointments with noshow_probability >= 0.6, sorted by time. Scores are written to the DB by the batch scoring step (`scripts/score_appointments.py`), which you'd run on a schedule in production (e.g. daily cron).
+Returns all upcoming appointments with noshow_probability >= 0.6, sorted by time. Scores are written to the DB by the batch scoring step (`python manage.py score_appointments`), which you'd run on a schedule in production (e.g. daily cron).
 
-### `POST /reminders/trigger`
+### `POST /api/reminders/trigger`
 
 Log a reminder sent for an appointment. Updates the reminder count on the appointment record.
 
@@ -131,6 +135,10 @@ mutation {
 }
 ```
 
+## Django Admin
+
+Visit `/admin/` to manage patients, appointments, and reminders through Django's built-in admin interface. Models are registered with searchable, filterable list views.
+
 ## Model details
 
 Two models are trained for comparison:
@@ -154,7 +162,7 @@ The synthetic dataset bakes in patterns that match what you'd see in real clinic
 - New patients → more no-shows than established ones
 - Walk-ins → almost never no-show (they're already there)
 
-See `scripts/generate_data.py` for the full logic.
+See `clinic/management/commands/generate_data.py` for the full logic.
 
 ## Tests
 
@@ -168,22 +176,30 @@ Tests use an in-memory SQLite database — no Postgres needed. Covers prediction
 
 ```
 clinicast/
-├── app/
-│   ├── config.py          # env vars and settings
-│   ├── database.py        # sqlalchemy engine/session
-│   ├── graphql_schema.py  # strawberry graphql types + resolvers
-│   ├── main.py            # fastapi app + endpoints
-│   ├── models.py          # orm models (patients, appointments, reminders)
-│   └── schemas.py         # pydantic request/response schemas
+├── manage.py
+├── clinicast/                    # Django project config
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── clinic/                       # Django app
+│   ├── models.py                 # Patient, Appointment, Reminder (Django ORM)
+│   ├── serializers.py            # DRF serializers
+│   ├── views.py                  # DRF views + dashboard
+│   ├── urls.py                   # API routing
+│   ├── admin.py                  # Django admin config
+│   ├── graphql_schema.py         # Strawberry GraphQL schema
+│   ├── management/
+│   │   └── commands/
+│   │       ├── generate_data.py  # seed synthetic data
+│   │       └── score_appointments.py  # batch-score appointments
+│   └── templates/
+│       └── dashboard.html        # stats + live scoring UI
 ├── scripts/
-│   ├── generate_data.py       # synthetic data generation
-│   ├── train_model.py         # ml training pipeline
-│   ├── score_appointments.py  # batch-score appointments and write to DB
-│   └── setup.sh               # convenience script
+│   └── train_model.py            # ML training pipeline
+├── models/                       # trained model artifacts (gitignored)
 ├── tests/
-│   ├── conftest.py        # fixtures + test db setup
-│   └── test_api.py        # api tests
-├── models/                # trained model artifacts (gitignored)
+│   ├── conftest.py               # pytest-django config
+│   └── test_api.py               # API tests
 ├── docker-compose.yml
 ├── Dockerfile
 └── requirements.txt

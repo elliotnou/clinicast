@@ -1,4 +1,4 @@
-from datetime import datetime
+from django.utils import timezone
 
 import joblib
 import numpy as np
@@ -124,7 +124,7 @@ class HighRiskListView(APIView):
             Appointment.objects
             .filter(
                 noshow_probability__gte=settings.HIGH_RISK_THRESHOLD,
-                scheduled_datetime__gte=datetime.now(),
+                scheduled_datetime__gte=timezone.now(),
             )
             .exclude(status="cancelled")
             .select_related("patient")
@@ -151,7 +151,7 @@ class TriggerReminderView(APIView):
         reminder = Reminder.objects.create(
             appointment=appt,
             channel=data["channel"],
-            sent_at=datetime.now(),
+            sent_at=timezone.now(),
             opened=False,
         )
 

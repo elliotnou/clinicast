@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from django.utils import timezone
+
 import strawberry
 from django.conf import settings
 from strawberry.django.views import GraphQLView
@@ -62,7 +64,7 @@ class Query:
             Appointment.objects
             .filter(
                 noshow_probability__gte=settings.HIGH_RISK_THRESHOLD,
-                scheduled_datetime__gte=datetime.now(),
+                scheduled_datetime__gte=timezone.now(),
             )
             .exclude(status="cancelled")
             .order_by("scheduled_datetime")
@@ -149,7 +151,7 @@ class Mutation:
         reminder = Reminder.objects.create(
             appointment=appt,
             channel=input.channel,
-            sent_at=datetime.now(),
+            sent_at=timezone.now(),
             opened=False,
         )
 
