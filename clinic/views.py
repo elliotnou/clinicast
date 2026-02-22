@@ -203,9 +203,11 @@ def dashboard(request):
         type_total = qs.count()
         if type_total > 0:
             type_noshows = qs.filter(status="no-show").count()
+            rate = type_noshows / type_total * 100
             by_type.append({
                 "type": appt_type,
-                "rate": type_noshows / type_total * 100,
+                "rate": rate,
+                "bar_width": int(rate / 40 * 100),
             })
     by_type.sort(key=lambda x: -x["rate"])
 
@@ -231,13 +233,19 @@ def dashboard(request):
             feature_importance.append({
                 "name": display_names.get(name, name),
                 "importance": float(imp),
+                "importance_pct": float(imp) * 100,
+                "bar_width": int(imp * 100 / max_importance),
             })
 
-    high_risk = (
+    high_risk_qs = (
         Appointment.objects
         .filter(noshow_probability__gte=settings.HIGH_RISK_THRESHOLD)
         .order_by("-noshow_probability")[:25]
     )
+    high_risk = []
+    for appt in high_risk_qs:
+        appt.noshow_pct = int(appt.noshow_probability * 100)
+        high_risk.append(appt)
 
     return render(request, "dashboard.html", {
         "stats": {
