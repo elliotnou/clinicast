@@ -13,7 +13,7 @@ The system flags high-risk appointments so staff can send targeted reminders bef
 
 ## Tech stack
 
-Python 3.11, FastAPI, PostgreSQL, SQLAlchemy, scikit-learn, pandas, Docker, GitHub Actions
+Python 3.11, FastAPI, Strawberry GraphQL, PostgreSQL, SQLAlchemy, scikit-learn, pandas, Docker, GitHub Actions
 
 ## Quick start
 
@@ -96,6 +96,41 @@ Log a reminder sent for an appointment. Updates the reminder count on the appoin
 }
 ```
 
+## GraphQL API
+
+The same functionality is also exposed via GraphQL at `/graphql`, built with [Strawberry](https://strawberry.rocks/). Hit `/graphql` in the browser to open the GraphiQL playground.
+
+Example query — fetch high-risk appointments:
+
+```graphql
+query {
+  highRiskAppointments {
+    appointmentId
+    patientId
+    scheduledDatetime
+    appointmentType
+    noshowProbability
+  }
+}
+```
+
+Example mutation — score an appointment:
+
+```graphql
+mutation {
+  predictNoshow(input: {
+    patientId: 42
+    scheduledDatetime: "2025-06-20T09:00:00"
+    appointmentType: "GP"
+    bookedLeadTimeDays: 14
+    remindersSent: 0
+  }) {
+    noshowProbability
+    riskLevel
+  }
+}
+```
+
 ## Model details
 
 Two models are trained for comparison:
@@ -136,6 +171,7 @@ clinicast/
 ├── app/
 │   ├── config.py          # env vars and settings
 │   ├── database.py        # sqlalchemy engine/session
+│   ├── graphql_schema.py  # strawberry graphql types + resolvers
 │   ├── main.py            # fastapi app + endpoints
 │   ├── models.py          # orm models (patients, appointments, reminders)
 │   └── schemas.py         # pydantic request/response schemas

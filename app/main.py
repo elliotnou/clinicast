@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import HIGH_RISK_THRESHOLD, MODEL_PATH
 from app.database import Base, engine, get_db
 from app.models import Appointment, Patient, Reminder
+from app.graphql_schema import graphql_app
 from app.schemas import (
     HighRiskAppointment,
     PredictRequest,
@@ -47,6 +48,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(graphql_app, prefix="/graphql")
 
 
 def _get_patient_noshow_rate(db: Session, patient_id: int) -> float:
