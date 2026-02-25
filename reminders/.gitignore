@@ -1,0 +1,14 @@
+/.bundle
+
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+/tmp/pids/*
+!/tmp/pids/.keep
+
+/public/assets
+
+.rspec_status
+
+/config/master.key
