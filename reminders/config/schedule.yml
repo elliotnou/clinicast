@@ -1,0 +1,13 @@
+sync_high_risk_appointments:
+  cron: "*/15 * * * *"
+  class: "SyncHighRiskAppointmentsJob"
+  queue: reminders
+  active_job: true
+  description: "pull high-risk appointments from the scoring service and plan reminders"
+
+enqueue_due_reminders:
+  cron: "*/5 * * * *"
+  class: "EnqueueDueRemindersJob"
+  queue: reminders
+  active_job: true
+  description: "hand reminders that have come due to the delivery workers"
