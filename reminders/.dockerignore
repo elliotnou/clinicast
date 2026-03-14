@@ -1,0 +1,5 @@
+.git
+log/*
+tmp/*
+spec
+.rspec_status
